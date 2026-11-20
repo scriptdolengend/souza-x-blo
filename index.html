@@ -15,10 +15,10 @@ header{padding:22px 7%;border-bottom:1px solid #292929;display:flex;justify-cont
 button{border:0;border-radius:8px;padding:13px;background:#d00000;color:white;font-weight:bold;cursor:pointer}
 button:hover{background:#f22}
 input{width:100%;padding:14px;background:#080808;border:1px solid #444;color:white;border-radius:8px;margin:10px 0}
-.hero{text-align:center;padding:75px 20px}
+.hero{text-align:center;padding:65px 20px}
 h1{font-size:clamp(38px,8vw,68px)}
 p{color:#aaa;margin:14px 0;line-height:1.6}
-.panel{background:#131313;border:1px solid #333;border-radius:14px;padding:23px;max-width:500px;margin:25px auto;text-align:left}
+.panel{background:#131313;border:1px solid #333;border-radius:14px;padding:23px;max-width:650px;margin:25px auto;text-align:left}
 .panel h2{text-align:center;margin-bottom:15px}
 .full{width:100%}
 .secondary{background:#333}
@@ -29,6 +29,7 @@ p{color:#aaa;margin:14px 0;line-height:1.6}
 .item{background:#222;padding:12px;margin:10px 0;border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .item button{width:auto;padding:9px}
 #result{margin-top:12px;color:#f55}
+.code{background:#080808;border:1px solid #444;border-radius:9px;padding:15px;overflow-wrap:anywhere;color:#ff7777;line-height:1.7;margin:15px 0}
 footer{text-align:center;padding:30px;color:#666;border-top:1px solid #292929}
 @media(max-width:600px){.grid{grid-template-columns:1fr}header{padding:18px}}
 </style>
@@ -50,6 +51,14 @@ footer{text-align:center;padding:30px;color:#666;border-top:1px solid #292929}
 <input id="accessKey" placeholder="Digite sua Key">
 <button class="full" onclick="activate()">ATIVAR ACESSO</button>
 <div id="result"></div>
+</div>
+
+<div id="scriptSection" class="panel hidden">
+<h2>SCRIPT VOX SEAS</h2>
+<p>Copie o código abaixo para consulta.</p>
+<div class="code" id="scriptCode">loadstring(game:HttpGet("https://getaetherishub.com/loader.lua"))()</div>
+<button class="full" onclick="copyScript()">COPIAR CÓDIGO</button>
+<p id="copyMessage"></p>
 </div>
 </section>
 
@@ -79,6 +88,7 @@ footer{text-align:center;padding:30px;color:#666;border-top:1px solid #292929}
 <h2>CRIAR KEY</h2>
 <input id="newKey" placeholder="Nome da Key">
 <button class="full" onclick="createKey()">CRIAR KEY</button>
+<button class="full secondary" onclick="createRandomKey()">GERAR KEY AUTOMÁTICA</button>
 
 <h2 style="margin-top:30px">GERENCIAR KEYS</h2>
 <div id="keyList"></div>
@@ -96,180 +106,156 @@ footer{text-align:center;padding:30px;color:#666;border-top:1px solid #292929}
 <script>
 const ADMIN_PASSWORD="Stx6";
 const ACCESS_KEY="Stx6";
-
 const DB_KEYS="sxb_keys";
 const DB_HISTORY="sxb_history";
-
 let isAdmin=false;
 
 function getKeys(){
- try{return JSON.parse(localStorage.getItem(DB_KEYS)||"[]")}
- catch{return []}
+try{return JSON.parse(localStorage.getItem(DB_KEYS)||"[]")}
+catch{return []}
 }
-
 function saveKeys(data){
- localStorage.setItem(DB_KEYS,JSON.stringify(data));
+localStorage.setItem(DB_KEYS,JSON.stringify(data));
 }
-
 function getHistory(){
- try{return JSON.parse(localStorage.getItem(DB_HISTORY)||"[]")}
- catch{return []}
+try{return JSON.parse(localStorage.getItem(DB_HISTORY)||"[]")}
+catch{return []}
 }
-
 function saveHistory(data){
- localStorage.setItem(DB_HISTORY,JSON.stringify(data));
+localStorage.setItem(DB_HISTORY,JSON.stringify(data));
 }
-
 function show(id){
- ["home","adminLogin","dashboard"].forEach(x=>{
- document.getElementById(x).classList.toggle("hidden",x!==id);
- });
+["home","adminLogin","dashboard"].forEach(x=>{
+document.getElementById(x).classList.toggle("hidden",x!==id);
+});
 }
-
 function goHome(){show("home")}
-
-function openLogin(){
- show("adminLogin");
-}
+function openLogin(){show("adminLogin")}
 
 function adminLogin(){
- const password=document.getElementById("adminPassword").value;
- if(password===ADMIN_PASSWORD){
- isAdmin=true;
- show("dashboard");
- render();
- }else{
- document.getElementById("loginMessage").textContent="Senha incorreta!";
- }
+const password=document.getElementById("adminPassword").value;
+if(password===ADMIN_PASSWORD){
+isAdmin=true;
+show("dashboard");
+render();
+}else{
+document.getElementById("loginMessage").textContent="Senha incorreta!";
+}
 }
 
 function activate(){
- const value=document.getElementById("accessKey").value.trim();
- const result=document.getElementById("result");
+const value=document.getElementById("accessKey").value.trim();
+const result=document.getElementById("result");
+if(!value){result.textContent="Digite sua Key!";return;}
 
- if(!value){
- result.textContent="Digite sua Key!";
- return;
- }
+const keys=getKeys();
+const valid=value===ACCESS_KEY||keys.some(k=>k.name===value&&k.active);
 
- const keys=getKeys();
- const valid=value===ACCESS_KEY ||
- keys.some(k=>k.name===value&&k.active);
+if(!valid){
+result.textContent="Key inválida ou bloqueada!";
+return;
+}
 
- if(!valid){
- result.textContent="Key inválida ou bloqueada!";
- return;
- }
+const history=getHistory();
+history.unshift({key:value,date:new Date().toLocaleString("pt-BR")});
+saveHistory(history);
 
- const history=getHistory();
- history.unshift({
- key:value,
- date:new Date().toLocaleString("pt-BR")
- });
- saveHistory(history);
+result.textContent="Acesso autorizado!";
+result.style.color="#55dd88";
+document.getElementById("scriptSection").classList.remove("hidden");
+}
 
- result.textContent="Acesso autorizado!";
- result.style.color="#55dd88";
+async function copyScript(){
+const code=document.getElementById("scriptCode").textContent;
+try{
+await navigator.clipboard.writeText(code);
+document.getElementById("copyMessage").textContent="Código copiado!";
+}catch{
+document.getElementById("copyMessage").textContent="Não foi possível copiar automaticamente.";
+}
 }
 
 function createKey(){
- if(!isAdmin)return;
-
- const input=document.getElementById("newKey");
- const name=input.value.trim();
-
- if(!name)return alert("Digite uma Key!");
- if(name===ACCESS_KEY)return alert("Key reservada!");
-
- const keys=getKeys();
-
- if(keys.some(k=>k.name===name)){
- return alert("Essa Key já existe!");
- }
-
- keys.push({name,active:true});
- saveKeys(keys);
-
- input.value="";
- render();
+if(!isAdmin)return;
+const input=document.getElementById("newKey");
+const name=input.value.trim();
+if(!name)return alert("Digite uma Key!");
+if(name===ACCESS_KEY)return alert("Key reservada!");
+const keys=getKeys();
+if(keys.some(k=>k.name===name))return alert("Essa Key já existe!");
+keys.push({name,active:true});
+saveKeys(keys);
+input.value="";
+render();
 }
-
 function generateKey(){
- return "SXB-"+Math.random().toString(36).slice(2,10).toUpperCase();
+return "SXB-"+Math.random().toString(36).slice(2,10).toUpperCase();
 }
-
 function createRandomKey(){
- document.getElementById("newKey").value=generateKey();
- createKey();
+document.getElementById("newKey").value=generateKey();
+createKey();
 }
 
 function render(){
- if(!isAdmin)return;
+if(!isAdmin)return;
+const keys=getKeys();
+document.getElementById("total").textContent=keys.length;
+document.getElementById("active").textContent=keys.filter(k=>k.active).length;
+document.getElementById("blocked").textContent=keys.filter(k=>!k.active).length;
 
- const keys=getKeys();
+const list=document.getElementById("keyList");
+list.replaceChildren();
 
- document.getElementById("total").textContent=keys.length;
- document.getElementById("active").textContent=keys.filter(k=>k.active).length;
- document.getElementById("blocked").textContent=keys.filter(k=>!k.active).length;
+keys.forEach((k,i)=>{
+const row=document.createElement("div");
+row.className="item";
+const label=document.createElement("span");
+label.textContent=k.name+" — "+(k.active?"ATIVA":"BLOQUEADA");
 
- const list=document.getElementById("keyList");
- list.replaceChildren();
+const toggle=document.createElement("button");
+toggle.textContent=k.active?"BLOQUEAR":"LIBERAR";
+toggle.onclick=()=>{
+const data=getKeys();
+data[i].active=!data[i].active;
+saveKeys(data);
+render();
+};
 
- keys.forEach((k,i)=>{
- const row=document.createElement("div");
- row.className="item";
+const remove=document.createElement("button");
+remove.textContent="EXCLUIR";
+remove.className="secondary";
+remove.onclick=()=>{
+if(!confirm("Excluir esta Key?"))return;
+const data=getKeys();
+data.splice(i,1);
+saveKeys(data);
+render();
+};
+row.append(label,toggle,remove);
+list.appendChild(row);
+});
 
- const label=document.createElement("span");
- label.textContent=k.name+" — "+(k.active?"ATIVA":"BLOQUEADA");
+const history=getHistory();
+const historyBox=document.getElementById("history");
+historyBox.replaceChildren();
 
- const toggle=document.createElement("button");
- toggle.textContent=k.active?"BLOQUEAR":"LIBERAR";
- toggle.onclick=()=>{
- const data=getKeys();
- data[i].active=!data[i].active;
- saveKeys(data);
- render();
- };
-
- const remove=document.createElement("button");
- remove.textContent="EXCLUIR";
- remove.className="secondary";
- remove.onclick=()=>{
- if(!confirm("Excluir esta Key?"))return;
- const data=getKeys();
- data.splice(i,1);
- saveKeys(data);
- render();
- };
-
- row.append(label,toggle,remove);
- list.appendChild(row);
- });
-
- const history=getHistory();
- const historyBox=document.getElementById("history");
- historyBox.replaceChildren();
-
- history.slice(0,30).forEach(item=>{
- const row=document.createElement("div");
- row.className="item";
- const label=document.createElement("span");
- label.textContent=item.key;
- const date=document.createElement("small");
- date.textContent=item.date;
- row.append(label,date);
- historyBox.appendChild(row);
- });
-
- if(!history.length){
- historyBox.textContent="Nenhuma ativação registrada.";
- }
+history.slice(0,30).forEach(item=>{
+const row=document.createElement("div");
+row.className="item";
+const label=document.createElement("span");
+label.textContent=item.key;
+const date=document.createElement("small");
+date.textContent=item.date;
+row.append(label,date);
+historyBox.appendChild(row);
+});
+if(!history.length)historyBox.textContent="Nenhuma ativação registrada.";
 }
 
 function logout(){
- isAdmin=false;
- document.getElementById("adminPassword").value="";
- show("home");
+isAdmin=false;
+document.getElementById("adminPassword").value="";
+show("home");
 }
 </script>
 </body>
