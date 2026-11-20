@@ -1,259 +1,277 @@
 
-  
-}<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080808">
 <title>SOUZA X BLOX</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#080808;color:white;font-family:Arial,sans-serif}
-header{padding:22px 8%;border-bottom:1px solid #292929}
-.logo{font-size:25px;font-weight:900}
-.logo span{color:#ff2020}
-.hero{text-align:center;padding:100px 20px}
-h1{font-size:clamp(40px,9vw,80px)}
-h1 span{color:#ff2020}
-p{color:#aaa;line-height:1.7;margin:18px auto;max-width:550px}
-.panel{background:#111;border:1px solid #292929;border-radius:15px;padding:25px;max-width:420px;margin:35px auto}
-input{width:100%;padding:15px;background:#080808;border:1px solid #333;color:white;border-radius:8px;margin:10px 0}
-button{width:100%;padding:15px;background:#e60000;color:white;border:0;border-radius:8px;font-weight:bold;cursor:pointer}
-button:hover{background:#ff3030}
-#result{margin-top:15px}
-section{padding:30px 20px}
-footer{text-align:center;padding:25px;border-top:1px solid #292929;color:#666}
+body{background:#080808;color:white;font-family:Arial,sans-serif;min-height:100vh}
+header{padding:22px 7%;border-bottom:1px solid #292929;display:flex;justify-content:space-between;align-items:center}
+.logo{font-size:24px;font-weight:900}
+.logo span,h1 span{color:#f22}
+button{border:0;border-radius:8px;padding:13px;background:#d00000;color:white;font-weight:bold;cursor:pointer}
+button:hover{background:#f22}
+input{width:100%;padding:14px;background:#080808;border:1px solid #444;color:white;border-radius:8px;margin:10px 0}
+.hero{text-align:center;padding:75px 20px}
+h1{font-size:clamp(38px,8vw,68px)}
+p{color:#aaa;margin:14px 0;line-height:1.6}
+.panel{background:#131313;border:1px solid #333;border-radius:14px;padding:23px;max-width:500px;margin:25px auto;text-align:left}
+.panel h2{text-align:center;margin-bottom:15px}
+.full{width:100%}
+.secondary{background:#333}
+.hidden{display:none!important}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:20px 0}
+.stat{background:#080808;border:1px solid #333;padding:17px;border-radius:9px}
+.stat strong{display:block;font-size:25px;margin-top:8px;color:#f33}
+.item{background:#222;padding:12px;margin:10px 0;border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.item button{width:auto;padding:9px}
+#result{margin-top:12px;color:#f55}
+footer{text-align:center;padding:30px;color:#666;border-top:1px solid #292929}
+@media(max-width:600px){.grid{grid-template-columns:1fr}header{padding:18px}}
 </style>
 </head>
 <body>
-<header><div class="logo">SOUZA <span>X BLOX</span></div></header>
 
-<section class="hero">
+<header>
+<div class="logo">SOUZA <span>X BLOX</span></div>
+<button onclick="openLogin()">PAINEL ADM</button>
+</header>
+
+<main>
+<section id="home" class="hero">
 <h1>SOUZA <span>X BLOX</span></h1>
-<p>Bem-vindo ao nosso hub. Ative seu acesso e confira as novidades da plataforma.</p>
+<p>PREMIUM SCRIPT HUB</p>
 
 <div class="panel">
-<h2>Ativar Key</h2>
-<input id="key" placeholder="Digite sua Key">
-<button onclick="activate()">ATIVAR ACESSO</button>
+<h2>ATIVAR KEY</h2>
+<input id="accessKey" placeholder="Digite sua Key">
+<button class="full" onclick="activate()">ATIVAR ACESSO</button>
 <div id="result"></div>
 </div>
 </section>
 
+<section id="adminLogin" class="hidden">
+<div class="panel">
+<h2>LOGIN ADMINISTRATIVO</h2>
+<input id="adminPassword" type="password" placeholder="Senha ADM">
+<button class="full" onclick="adminLogin()">ENTRAR</button>
+<button class="full secondary" onclick="goHome()">VOLTAR</button>
+<p id="loginMessage"></p>
+</div>
+</section>
+
+<section id="dashboard" class="hidden">
+<div class="hero">
+<h1>PAINEL <span>ADM</span></h1>
+<p>GERENCIAMENTO SOUZA X BLOX</p>
+</div>
+
+<div class="panel">
+<div class="grid">
+<div class="stat">TOTAL<strong id="total">0</strong></div>
+<div class="stat">ATIVAS<strong id="active">0</strong></div>
+<div class="stat">BLOQUEADAS<strong id="blocked">0</strong></div>
+</div>
+
+<h2>CRIAR KEY</h2>
+<input id="newKey" placeholder="Nome da Key">
+<button class="full" onclick="createKey()">CRIAR KEY</button>
+
+<h2 style="margin-top:30px">GERENCIAR KEYS</h2>
+<div id="keyList"></div>
+
+<h2 style="margin-top:30px">HISTÓRICO</h2>
+<div id="history"></div>
+
+<button class="full secondary" onclick="logout()">SAIR DO PAINEL</button>
+</div>
+</section>
+</main>
+
 <footer>© 2026 SOUZA X BLOX</footer>
 
 <script>
-async function activate(){
- const key=document.getElementById("key").value.trim();
- const result=document.getElementById("result");
+const ADMIN_PASSWORD="Stx6";
+const ACCESS_KEY="Stx6";
 
- result.textContent="Verificando...";
+const DB_KEYS="sxb_keys";
+const DB_HISTORY="sxb_history";
 
- try{
-  const response=await fetch("/api/activate",{
-   method:"POST",
-   headers:{"Content-Type":"application/json"},
-   body:JSON.stringify({key})
-  });
+let isAdmin=false;
 
-  const data=await response.json();
-  result.textContent=data.message||data.error;
- }catch(e){
-  result.textContent="Erro ao conectar ao servidor.";
+function getKeys(){
+ try{return JSON.parse(localStorage.getItem(DB_KEYS)||"[]")}
+ catch{return []}
+}
+
+function saveKeys(data){
+ localStorage.setItem(DB_KEYS,JSON.stringify(data));
+}
+
+function getHistory(){
+ try{return JSON.parse(localStorage.getItem(DB_HISTORY)||"[]")}
+ catch{return []}
+}
+
+function saveHistory(data){
+ localStorage.setItem(DB_HISTORY,JSON.stringify(data));
+}
+
+function show(id){
+ ["home","adminLogin","dashboard"].forEach(x=>{
+ document.getElementById(x).classList.toggle("hidden",x!==id);
+ });
+}
+
+function goHome(){show("home")}
+
+function openLogin(){
+ show("adminLogin");
+}
+
+function adminLogin(){
+ const password=document.getElementById("adminPassword").value;
+ if(password===ADMIN_PASSWORD){
+ isAdmin=true;
+ show("dashboard");
+ render();
+ }else{
+ document.getElementById("loginMessage").textContent="Senha incorreta!";
  }
 }
-</script>
-</body>
-</html><!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Admin - SOUZA X BLOX</title>
-<style>
-*{box-sizing:border-box}
-body{background:#080808;color:white;font-family:Arial;padding:25px}
-h1 span{color:red}
-.panel{max-width:600px;margin:30px auto;background:#111;padding:25px;border:1px solid #333;border-radius:12px}
-input{width:100%;padding:14px;background:#080808;color:white;border:1px solid #444;margin:10px 0}
-button{padding:13px;background:#e60000;color:white;border:0;border-radius:7px;margin:5px;cursor:pointer}
-.item{padding:12px;border-bottom:1px solid #333;overflow-wrap:anywhere}
-</style>
-</head>
-<body>
-<div class="panel">
-<h1>SOUZA <span>X BLOX</span></h1>
-<h2>Painel Administrativo</h2>
 
-<div id="login">
-<input id="password" type="password" placeholder="Senha administrativa">
-<button onclick="login()">ENTRAR</button>
-</div>
+function activate(){
+ const value=document.getElementById("accessKey").value.trim();
+ const result=document.getElementById("result");
 
-<div id="dashboard" hidden>
-<button onclick="createKey()">GERAR KEY</button>
-<button onclick="loadKeys()">ATUALIZAR KEYS</button>
-<button onclick="loadHistory()">HISTÓRICO</button>
-<div id="output"></div>
-</div>
-</div>
+ if(!value){
+ result.textContent="Digite sua Key!";
+ return;
+ }
 
-<script>
-let token="";
+ const keys=getKeys();
+ const valid=value===ACCESS_KEY ||
+ keys.some(k=>k.name===value&&k.active);
 
-async function login(){
- const response=await fetch("/api/login",{
-  method:"POST",
-  headers:{"Content-Type":"application/json"},
-  body:JSON.stringify({password:document.getElementById("password").value})
+ if(!valid){
+ result.textContent="Key inválida ou bloqueada!";
+ return;
+ }
+
+ const history=getHistory();
+ history.unshift({
+ key:value,
+ date:new Date().toLocaleString("pt-BR")
+ });
+ saveHistory(history);
+
+ result.textContent="Acesso autorizado!";
+ result.style.color="#55dd88";
+}
+
+function createKey(){
+ if(!isAdmin)return;
+
+ const input=document.getElementById("newKey");
+ const name=input.value.trim();
+
+ if(!name)return alert("Digite uma Key!");
+ if(name===ACCESS_KEY)return alert("Key reservada!");
+
+ const keys=getKeys();
+
+ if(keys.some(k=>k.name===name)){
+ return alert("Essa Key já existe!");
+ }
+
+ keys.push({name,active:true});
+ saveKeys(keys);
+
+ input.value="";
+ render();
+}
+
+function generateKey(){
+ return "SXB-"+Math.random().toString(36).slice(2,10).toUpperCase();
+}
+
+function createRandomKey(){
+ document.getElementById("newKey").value=generateKey();
+ createKey();
+}
+
+function render(){
+ if(!isAdmin)return;
+
+ const keys=getKeys();
+
+ document.getElementById("total").textContent=keys.length;
+ document.getElementById("active").textContent=keys.filter(k=>k.active).length;
+ document.getElementById("blocked").textContent=keys.filter(k=>!k.active).length;
+
+ const list=document.getElementById("keyList");
+ list.replaceChildren();
+
+ keys.forEach((k,i)=>{
+ const row=document.createElement("div");
+ row.className="item";
+
+ const label=document.createElement("span");
+ label.textContent=k.name+" — "+(k.active?"ATIVA":"BLOQUEADA");
+
+ const toggle=document.createElement("button");
+ toggle.textContent=k.active?"BLOQUEAR":"LIBERAR";
+ toggle.onclick=()=>{
+ const data=getKeys();
+ data[i].active=!data[i].active;
+ saveKeys(data);
+ render();
+ };
+
+ const remove=document.createElement("button");
+ remove.textContent="EXCLUIR";
+ remove.className="secondary";
+ remove.onclick=()=>{
+ if(!confirm("Excluir esta Key?"))return;
+ const data=getKeys();
+ data.splice(i,1);
+ saveKeys(data);
+ render();
+ };
+
+ row.append(label,toggle,remove);
+ list.appendChild(row);
  });
 
- const data=await response.json();
+ const history=getHistory();
+ const historyBox=document.getElementById("history");
+ historyBox.replaceChildren();
 
- if(!response.ok){alert(data.error);return}
-
- token=data.token;
- document.getElementById("login").hidden=true;
- document.getElementById("dashboard").hidden=false;
- loadKeys();
-}
-
-async function admin(url,body){
- const response=await fetch(url,{
-  method:body?"POST":"GET",
-  headers:{
-   "Content-Type":"application/json",
-   "Authorization":"Bearer "+token
-  },
-  body:body?JSON.stringify(body):undefined
- });
- return response.json();
-}
-
-async function createKey(){
- const data=await admin("/api/admin/keys",{});
- alert("Nova Key: "+data.key);
- loadKeys();
-}
-
-async function loadKeys(){
- const keys=await admin("/api/admin/keys");
- document.getElementById("output").innerHTML="<h3>Keys</h3>";
- keys.forEach(item=>{
-  const div=document.createElement("div");
-  div.className="item";
-  div.textContent=item.key+" — "+(item.active?"Ativa":"Revogada");
-  document.getElementById("output").appendChild(div);
- });
-}
-
-async function loadHistory(){
- const items=await admin("/api/admin/history");
- const output=document.getElementById("output");
- output.innerHTML="<h3>Histórico de ativações</h3>";
- items.forEach(item=>{
-  const div=document.createElement("div");
-  div.className="item";
-  div.textContent=item.key+" — "+item.activated_at;
-  output.appendChild(div);
- });
-}
-</script>
-</body>
-</html><!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Admin - SOUZA X BLOX</title>
-<style>
-*{box-sizing:border-box}
-body{background:#080808;color:white;font-family:Arial;padding:25px}
-h1 span{color:red}
-.panel{max-width:600px;margin:30px auto;background:#111;padding:25px;border:1px solid #333;border-radius:12px}
-input{width:100%;padding:14px;background:#080808;color:white;border:1px solid #444;margin:10px 0}
-button{padding:13px;background:#e60000;color:white;border:0;border-radius:7px;margin:5px;cursor:pointer}
-.item{padding:12px;border-bottom:1px solid #333;overflow-wrap:anywhere}
-</style>
-</head>
-<body>
-<div class="panel">
-<h1>SOUZA <span>X BLOX</span></h1>
-<h2>Painel Administrativo</h2>
-
-<div id="login">
-<input id="password" type="password" placeholder="Senha administrativa">
-<button onclick="login()">ENTRAR</button>
-</div>
-
-<div id="dashboard" hidden>
-<button onclick="createKey()">GERAR KEY</button>
-<button onclick="loadKeys()">ATUALIZAR KEYS</button>
-<button onclick="loadHistory()">HISTÓRICO</button>
-<div id="output"></div>
-</div>
-</div>
-
-<script>
-let token="";
-
-async function login(){
- const response=await fetch("/api/login",{
-  method:"POST",
-  headers:{"Content-Type":"application/json"},
-  body:JSON.stringify({password:document.getElementById("password").value})
+ history.slice(0,30).forEach(item=>{
+ const row=document.createElement("div");
+ row.className="item";
+ const label=document.createElement("span");
+ label.textContent=item.key;
+ const date=document.createElement("small");
+ date.textContent=item.date;
+ row.append(label,date);
+ historyBox.appendChild(row);
  });
 
- const data=await response.json();
-
- if(!response.ok){alert(data.error);return}
-
- token=data.token;
- document.getElementById("login").hidden=true;
- document.getElementById("dashboard").hidden=false;
- loadKeys();
+ if(!history.length){
+ historyBox.textContent="Nenhuma ativação registrada.";
+ }
 }
 
-async function admin(url,body){
- const response=await fetch(url,{
-  method:body?"POST":"GET",
-  headers:{
-   "Content-Type":"application/json",
-   "Authorization":"Bearer "+token
-  },
-  body:body?JSON.stringify(body):undefined
- });
- return response.json();
-}
-
-async function createKey(){
- const data=await admin("/api/admin/keys",{});
- alert("Nova Key: "+data.key);
- loadKeys();
-}
-
-async function loadKeys(){
- const keys=await admin("/api/admin/keys");
- document.getElementById("output").innerHTML="<h3>Keys</h3>";
- keys.forEach(item=>{
-  const div=document.createElement("div");
-  div.className="item";
-  div.textContent=item.key+" — "+(item.active?"Ativa":"Revogada");
-  document.getElementById("output").appendChild(div);
- });
-}
-
-async function loadHistory(){
- const items=await admin("/api/admin/history");
- const output=document.getElementById("output");
- output.innerHTML="<h3>Histórico de ativações</h3>";
- items.forEach(item=>{
-  const div=document.createElement("div");
-  div.className="item";
-  div.textContent=item.key+" — "+item.activated_at;
-  output.appendChild(div);
- });
+function logout(){
+ isAdmin=false;
+ document.getElementById("adminPassword").value="";
+ show("home");
 }
 </script>
 </body>
 </html>
+
