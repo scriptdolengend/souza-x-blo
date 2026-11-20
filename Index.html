@@ -1,0 +1,357 @@
+const express = require("express");
+const Database = require("better-sqlite3");
+const crypto = require("crypto");
+const path = require("path");
+
+const app = express();
+const db = new Database(process.env.DB_PATH || "data.sqlite");
+
+const PORT = process.env.PORT || 3000;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Stx6";
+const ACCESS_KEY = process.env.ACCESS_KEY || "Stx6";
+const SESSION_SECRET = process.env.SESSION_SECRET || "change-this-secret";
+
+app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
+
+db.exec(`
+CREATE TABLE IF NOT EXISTS keys (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ key TEXT UNIQUE NOT NULL,
+ active INTEGER DEFAULT 1,
+ created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS activations (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ key TEXT NOT NULL,
+ activated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+`);
+
+const tokenFor = (password) =>
+ crypto.createHmac("sha256", SESSION_SECRET).update(password).digest("hex");
+
+function adminAuth(req, res, next) {
+ const token = req.headers.authorization?.replace("Bearer ", "");
+ if (!token || token !== tokenFor(ADMIN_PASSWORD)) {
+   return res.status(401).json({ error: "Não autorizado" });
+ }
+ next();
+}
+
+app.post("/api/login", (req, res) => {
+ if (req.body.password !== ADMIN_PASSWORD) {
+   return res.status(401).json({ error: "Senha incorreta" });
+ }
+ res.json({ token: tokenFor(ADMIN_PASSWORD) });
+});
+
+app.post("/api/activate", (req, res) => {
+ const key = String(req.body.key || "").trim();
+
+ if (!key || key !== ACCESS_KEY) {
+   return res.status(403).json({ error: "Key inválida" });
+ }
+
+ db.prepare("INSERT INTO activations (key) VALUES (?)").run(key);
+ res.json({ success: true, message: "Key ativada!" });
+});
+
+app.get("/api/admin/keys", adminAuth, (req, res) => {
+ res.json(db.prepare("SELECT * FROM keys ORDER BY id DESC").all());
+});
+
+app.post("/api/admin/keys", adminAuth, (req, res) => {
+ const key = crypto.randomBytes(12).toString("hex");
+
+ db.prepare("INSERT INTO keys (key) VALUES (?)").run(key);
+
+ res.json({ key });
+});
+
+app.post("/api/admin/revoke", adminAuth, (req, res) => {
+ const key = String(req.body.key || "");
+
+ db.prepare("UPDATE keys SET active = 0 WHERE key = ?").run(key);
+
+ res.json({ success: true });
+});
+
+app.get("/api/admin/history", adminAuth, (req, res) => {
+ res.json(
+   db.prepare("SELECT * FROM activations ORDER BY id DESC LIMIT 100").all()
+ );
+});
+
+app.listen(PORT, () => {
+ console.log(`SOUZA X BLOX rodando na porta ${PORT}`);
+});{
+  "name": "souza-x-blox",
+  "version": "1.0.0",
+  "description": "SOUZA X BLOX",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "better-sqlite3": "^11.7.0"
+  }
+}<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SOUZA X BLOX</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#080808;color:white;font-family:Arial,sans-serif}
+header{padding:22px 8%;border-bottom:1px solid #292929}
+.logo{font-size:25px;font-weight:900}
+.logo span{color:#ff2020}
+.hero{text-align:center;padding:100px 20px}
+h1{font-size:clamp(40px,9vw,80px)}
+h1 span{color:#ff2020}
+p{color:#aaa;line-height:1.7;margin:18px auto;max-width:550px}
+.panel{background:#111;border:1px solid #292929;border-radius:15px;padding:25px;max-width:420px;margin:35px auto}
+input{width:100%;padding:15px;background:#080808;border:1px solid #333;color:white;border-radius:8px;margin:10px 0}
+button{width:100%;padding:15px;background:#e60000;color:white;border:0;border-radius:8px;font-weight:bold;cursor:pointer}
+button:hover{background:#ff3030}
+#result{margin-top:15px}
+section{padding:30px 20px}
+footer{text-align:center;padding:25px;border-top:1px solid #292929;color:#666}
+</style>
+</head>
+<body>
+<header><div class="logo">SOUZA <span>X BLOX</span></div></header>
+
+<section class="hero">
+<h1>SOUZA <span>X BLOX</span></h1>
+<p>Bem-vindo ao nosso hub. Ative seu acesso e confira as novidades da plataforma.</p>
+
+<div class="panel">
+<h2>Ativar Key</h2>
+<input id="key" placeholder="Digite sua Key">
+<button onclick="activate()">ATIVAR ACESSO</button>
+<div id="result"></div>
+</div>
+</section>
+
+<footer>© 2026 SOUZA X BLOX</footer>
+
+<script>
+async function activate(){
+ const key=document.getElementById("key").value.trim();
+ const result=document.getElementById("result");
+
+ result.textContent="Verificando...";
+
+ try{
+  const response=await fetch("/api/activate",{
+   method:"POST",
+   headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({key})
+  });
+
+  const data=await response.json();
+  result.textContent=data.message||data.error;
+ }catch(e){
+  result.textContent="Erro ao conectar ao servidor.";
+ }
+}
+</script>
+</body>
+</html><!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin - SOUZA X BLOX</title>
+<style>
+*{box-sizing:border-box}
+body{background:#080808;color:white;font-family:Arial;padding:25px}
+h1 span{color:red}
+.panel{max-width:600px;margin:30px auto;background:#111;padding:25px;border:1px solid #333;border-radius:12px}
+input{width:100%;padding:14px;background:#080808;color:white;border:1px solid #444;margin:10px 0}
+button{padding:13px;background:#e60000;color:white;border:0;border-radius:7px;margin:5px;cursor:pointer}
+.item{padding:12px;border-bottom:1px solid #333;overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+<div class="panel">
+<h1>SOUZA <span>X BLOX</span></h1>
+<h2>Painel Administrativo</h2>
+
+<div id="login">
+<input id="password" type="password" placeholder="Senha administrativa">
+<button onclick="login()">ENTRAR</button>
+</div>
+
+<div id="dashboard" hidden>
+<button onclick="createKey()">GERAR KEY</button>
+<button onclick="loadKeys()">ATUALIZAR KEYS</button>
+<button onclick="loadHistory()">HISTÓRICO</button>
+<div id="output"></div>
+</div>
+</div>
+
+<script>
+let token="";
+
+async function login(){
+ const response=await fetch("/api/login",{
+  method:"POST",
+  headers:{"Content-Type":"application/json"},
+  body:JSON.stringify({password:document.getElementById("password").value})
+ });
+
+ const data=await response.json();
+
+ if(!response.ok){alert(data.error);return}
+
+ token=data.token;
+ document.getElementById("login").hidden=true;
+ document.getElementById("dashboard").hidden=false;
+ loadKeys();
+}
+
+async function admin(url,body){
+ const response=await fetch(url,{
+  method:body?"POST":"GET",
+  headers:{
+   "Content-Type":"application/json",
+   "Authorization":"Bearer "+token
+  },
+  body:body?JSON.stringify(body):undefined
+ });
+ return response.json();
+}
+
+async function createKey(){
+ const data=await admin("/api/admin/keys",{});
+ alert("Nova Key: "+data.key);
+ loadKeys();
+}
+
+async function loadKeys(){
+ const keys=await admin("/api/admin/keys");
+ document.getElementById("output").innerHTML="<h3>Keys</h3>";
+ keys.forEach(item=>{
+  const div=document.createElement("div");
+  div.className="item";
+  div.textContent=item.key+" — "+(item.active?"Ativa":"Revogada");
+  document.getElementById("output").appendChild(div);
+ });
+}
+
+async function loadHistory(){
+ const items=await admin("/api/admin/history");
+ const output=document.getElementById("output");
+ output.innerHTML="<h3>Histórico de ativações</h3>";
+ items.forEach(item=>{
+  const div=document.createElement("div");
+  div.className="item";
+  div.textContent=item.key+" — "+item.activated_at;
+  output.appendChild(div);
+ });
+}
+</script>
+</body>
+</html><!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin - SOUZA X BLOX</title>
+<style>
+*{box-sizing:border-box}
+body{background:#080808;color:white;font-family:Arial;padding:25px}
+h1 span{color:red}
+.panel{max-width:600px;margin:30px auto;background:#111;padding:25px;border:1px solid #333;border-radius:12px}
+input{width:100%;padding:14px;background:#080808;color:white;border:1px solid #444;margin:10px 0}
+button{padding:13px;background:#e60000;color:white;border:0;border-radius:7px;margin:5px;cursor:pointer}
+.item{padding:12px;border-bottom:1px solid #333;overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+<div class="panel">
+<h1>SOUZA <span>X BLOX</span></h1>
+<h2>Painel Administrativo</h2>
+
+<div id="login">
+<input id="password" type="password" placeholder="Senha administrativa">
+<button onclick="login()">ENTRAR</button>
+</div>
+
+<div id="dashboard" hidden>
+<button onclick="createKey()">GERAR KEY</button>
+<button onclick="loadKeys()">ATUALIZAR KEYS</button>
+<button onclick="loadHistory()">HISTÓRICO</button>
+<div id="output"></div>
+</div>
+</div>
+
+<script>
+let token="";
+
+async function login(){
+ const response=await fetch("/api/login",{
+  method:"POST",
+  headers:{"Content-Type":"application/json"},
+  body:JSON.stringify({password:document.getElementById("password").value})
+ });
+
+ const data=await response.json();
+
+ if(!response.ok){alert(data.error);return}
+
+ token=data.token;
+ document.getElementById("login").hidden=true;
+ document.getElementById("dashboard").hidden=false;
+ loadKeys();
+}
+
+async function admin(url,body){
+ const response=await fetch(url,{
+  method:body?"POST":"GET",
+  headers:{
+   "Content-Type":"application/json",
+   "Authorization":"Bearer "+token
+  },
+  body:body?JSON.stringify(body):undefined
+ });
+ return response.json();
+}
+
+async function createKey(){
+ const data=await admin("/api/admin/keys",{});
+ alert("Nova Key: "+data.key);
+ loadKeys();
+}
+
+async function loadKeys(){
+ const keys=await admin("/api/admin/keys");
+ document.getElementById("output").innerHTML="<h3>Keys</h3>";
+ keys.forEach(item=>{
+  const div=document.createElement("div");
+  div.className="item";
+  div.textContent=item.key+" — "+(item.active?"Ativa":"Revogada");
+  document.getElementById("output").appendChild(div);
+ });
+}
+
+async function loadHistory(){
+ const items=await admin("/api/admin/history");
+ const output=document.getElementById("output");
+ output.innerHTML="<h3>Histórico de ativações</h3>";
+ items.forEach(item=>{
+  const div=document.createElement("div");
+  div.className="item";
+  div.textContent=item.key+" — "+item.activated_at;
+  output.appendChild(div);
+ });
+}
+</script>
+</body>
+</html>
